@@ -21,7 +21,8 @@ void SetSignalHandling(void(*handlerFunction)(int, siginfo_t *, void *), int sig
 }
 
 void Handler(int sig, siginfo_t *si, void *ucontext) {
-    printf("OdbiorcaPonaglen: Otrzymalem ponaglenie!\n");
+    static long int num;
+    printf("OdbiorcaPonaglen: Otrzymalem ponaglenie nr %ld!\n", num++);
 }
 
 int main(int argc, char *argv[]) {

@@ -15,7 +15,7 @@ struct LastRequest {
 /**
  * Zmienne globalne
  */
-float fRequestRegister = 0;
+float requestRegister = 0;
 pid_t myPid = 0;
 int completedRequests = 0;
 int sentReminders = 0;
@@ -47,9 +47,9 @@ void HandlerSigPipe(int sig, siginfo_t *si, void *ucontext);
  */
 int main(int argc, char *argv[]) {
 
-    int nSignal = 0;
+    int signal = 0;
     pid_t procPid = 0;
-    float fTimeGap = 0;
+    float timeGap = 0;
     myPid = getpid();
 
     srand(time(NULL));
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     while ((opt = getopt(argc, argv, "s:p:d:v:")) != -1) {
         switch (opt) {
             case 's':
-                nSignal = (int) strtol(optarg, NULL, 10);
+                signal = (int) strtol(optarg, NULL, 10);
                 break;
 
             case 'p':
@@ -69,11 +69,11 @@ int main(int argc, char *argv[]) {
                 break;
 
             case 'd':
-                fTimeGap = strtof(optarg, NULL);
+                timeGap = strtof(optarg, NULL);
                 break;
 
             case 'v':
-                fRequestRegister = strtof(optarg, NULL);
+                requestRegister = strtof(optarg, NULL);
                 break;
             default:
                 OnError("Pasozyt: Blad we wczytywaniu wartosci parametrow!");
@@ -81,15 +81,15 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    long lNanoTimeGap = (long) (fTimeGap * 100000000.0);
+    long nanoTimeGap = (long) (timeGap * 100000000.0);
 
     /**
      * Ustanowienie obslugi potwierdzenia spelnienia zadania
      */
     sigset_t signalsToBlock;
     sigemptyset(&signalsToBlock);
-    sigaddset(&signalsToBlock, nSignal);
-    SetSignalHandling(HandlerConfirmationOfRequest, nSignal, signalsToBlock, SA_RESTART);
+    sigaddset(&signalsToBlock, signal);
+    SetSignalHandling(HandlerConfirmationOfRequest, signal, signalsToBlock, SA_RESTART);
 
     /**
      * Ustanowienie obslugi SIGPIPE
@@ -103,10 +103,10 @@ int main(int argc, char *argv[]) {
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
     while (1) {
-        int tempCompletedRequests = completedRequests;
-        SendRequest(myPid, fRequestRegister);
-        GoToSleep(0, lNanoTimeGap);
-        if (completedRequests == tempCompletedRequests)//Jesli sa rowne tzn, ze odpowiedz nie nadeszla
+        int oldCompletedRequests = completedRequests;
+        SendRequest(myPid, requestRegister);
+        GoToSleep(0, nanoTimeGap);
+        if (completedRequests == oldCompletedRequests)//Jesli sa rowne tzn, ze odpowiedz nie nadeszla
         {
             SendReminder(procPid);
         } else//TODO: Usunac debug
@@ -128,15 +128,19 @@ void OnError(const char *message) {
 }
 
 void SendRequest(pid_t myPid, float requestRegister) {
+    static float oldRequestRegister;
     char requestMessage[20] = {0};
     sprintf(requestMessage, "%d %.2f\n", myPid, requestRegister);
     if (write(STDOUT_FILENO, requestMessage, sizeof(requestMessage)) == -1) {
         OnError("Pasozyt: Blad podczas wypisywania zadania!");
     }
-    lastRequest.requestValue = requestRegister;
-    lastRequest.remindersCount = 0;
-    lastRequest.answersCount = 0;
-    lastRequest.completed = 0;
+    if (oldRequestRegister != requestRegister) { //Jesli sa rozne, tzn ze wysylam nowe zadanie, wiec resetuje struct lastRequest
+        lastRequest.requestValue = requestRegister;
+        lastRequest.remindersCount = 0;
+        lastRequest.answersCount = 0;
+        lastRequest.completed = 0;
+    }
+    oldRequestRegister = requestRegister;
 }
 
 void SendReminder(pid_t receiverPid) {
@@ -162,13 +166,13 @@ void SendReminder(pid_t receiverPid) {
 }
 
 void HandlerConfirmationOfRequest(int sig, siginfo_t *si, void *ucontext) {
-    fRequestRegister += fRequestRegister * (float) 0.25;
+    requestRegister += requestRegister * (float) 0.25;
     completedRequests++;
     lastRequest.completed = 1;
 }
 
 void HandlerAnswerToReminder(int sig, siginfo_t *si, void *ucontext) {
-    fRequestRegister -= fRequestRegister * (float) 0.2;
+    requestRegister -= requestRegister * (float) 0.2;
     lastRequest.answersCount++;
 }
 
@@ -200,12 +204,21 @@ void HandlerSigPipe(int sig, siginfo_t *si, void *ucontext) {
 
 void GoToSleep(time_t seconds, long nanoseconds) {
     struct timespec ts;
+    struct timespec timeLeft;
+    _Bool sleepSuccess = 0;
     while (nanoseconds > 999999999L) {
         nanoseconds -= 1000000000L;
         seconds++;
     }
     ts.tv_sec = seconds;
     ts.tv_nsec = nanoseconds;
-    nanosleep(&ts, NULL);
+    if (nanosleep(&ts, &timeLeft) == 0) {
+        sleepSuccess = 1;
+    }
+    while (sleepSuccess == 0) {
+        if (nanosleep(&timeLeft, &timeLeft) == 0) {
+            sleepSuccess = 1;
+        }
+    }
 }
 
