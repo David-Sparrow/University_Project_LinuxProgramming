@@ -109,9 +109,6 @@ int main(int argc, char *argv[]) {
         if (completedRequests == oldCompletedRequests)//Jesli sa rowne tzn, ze odpowiedz nie nadeszla
         {
             SendReminder(procPid);
-        } else//TODO: Usunac debug
-        {
-            printf("Debug: Nie wyslalem ponaglenia!\n");
         }
     }
 #pragma clang diagnostic pop
