@@ -66,6 +66,11 @@ int main(int argc, char *argv[]) {
     /**
      * Wczytywanie parametrów programu
      */
+     if (argc != 9)
+     {
+         OnError("Pasozyt: Instrukcja uzytkowania: <nazwa_programu> -s <sygnal INT> -p <pid INT>"
+                 " -d <odstep czasowy FLOAT> -v <poczatkowa wartosc rejestru FLOAT>\n");
+     }
     int opt;
     while ((opt = getopt(argc, argv, "s:p:d:v:")) != -1) {
         switch (opt) {
