@@ -20,6 +20,7 @@ pid_t myPid = 0;
 int completedRequests = 0;
 int sentReminders = 0;
 struct LastRequest lastRequest;
+_Bool isNewRequest = 1;
 
 
 /**
@@ -125,19 +126,19 @@ void OnError(const char *message) {
 }
 
 void SendRequest(pid_t myPid, float requestRegister) {
-    static float oldRequestRegister;
     char requestMessage[20] = {0};
     sprintf(requestMessage, "%d %.2f\n", myPid, requestRegister);
     if (write(STDOUT_FILENO, requestMessage, sizeof(requestMessage)) == -1) {
         OnError("Pasozyt: Blad podczas wypisywania zadania!");
     }
-    if (oldRequestRegister != requestRegister) { //Jesli sa rozne, tzn ze wysylam nowe zadanie, wiec resetuje struct lastRequest
+    if (isNewRequest)
+    {
         lastRequest.requestValue = requestRegister;
         lastRequest.remindersCount = 0;
         lastRequest.answersCount = 0;
         lastRequest.completed = 0;
+        isNewRequest = 0;
     }
-    oldRequestRegister = requestRegister;
 }
 
 void SendReminder(pid_t receiverPid) {
@@ -166,11 +167,25 @@ void HandlerConfirmationOfRequest(int sig, siginfo_t *si, void *ucontext) {
     requestRegister += requestRegister * (float) 0.25;
     completedRequests++;
     lastRequest.completed = 1;
+    isNewRequest = 1; //Po spelnieniu zadania uznajemy, ze nastepne wyslane zadanie jest nowym zadaniem
 }
 
 void HandlerAnswerToReminder(int sig, siginfo_t *si, void *ucontext) {
     requestRegister -= requestRegister * (float) 0.2;
     lastRequest.answersCount++;
+    /**
+     * Usunac jesli nalezy pozostawic zapisana pierwotna wartosc zadania!!!
+     */
+     lastRequest.requestValue = requestRegister;
+     /********************************************************************/
+
+     /**
+      * Ustanawiam limit 5 odpowiedzi na ponaglenia.
+      */
+      if (lastRequest.answersCount >= 5)
+      {
+          isNewRequest = 1;
+      }
 }
 
 void SetSignalHandling(void(*handlerFunction)(int, siginfo_t *, void *), int signalToHandle, sigset_t signalsToBlock,
