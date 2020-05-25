@@ -5,6 +5,14 @@
 #include <signal.h>
 #include <time.h>
 
+/**
+ * NOTATKI:
+ * 1. Żądanie uznawane jest za 'nowe', kiedy przyjdzie potwierdzenie spełnienia żądania,
+ * bądź przyjdzie 5-ta odpowiedź na ponaglenie.
+ * 2. Po wysłaniu kolejnego ponaglenia ustanawiana jest default-owa obsługa sygnału poprzedniego ponaglenia.
+ *
+ */
+
 struct LastRequest {
     float requestValue;
     int remindersCount;
@@ -56,7 +64,7 @@ int main(int argc, char *argv[]) {
     srand(time(NULL));
 
     /**
-     * Wczytywanie parametrow programu
+     * Wczytywanie parametrów programu
      */
     int opt;
     while ((opt = getopt(argc, argv, "s:p:d:v:")) != -1) {
@@ -85,7 +93,7 @@ int main(int argc, char *argv[]) {
     long nanoTimeGap = (long) (timeGap * 100000000.0);
 
     /**
-     * Ustanowienie obslugi potwierdzenia spelnienia zadania
+     * Ustanowienie obsługi potwierdzenia spełnienia żądania
      */
     sigset_t signalsToBlock;
     sigemptyset(&signalsToBlock);
@@ -93,13 +101,13 @@ int main(int argc, char *argv[]) {
     SetSignalHandling(HandlerConfirmationOfRequest, signal, signalsToBlock, SA_RESTART);
 
     /**
-     * Ustanowienie obslugi SIGPIPE
+     * Ustanowienie obsługi SIGPIPE
      */
     sigfillset(&signalsToBlock);
     SetSignalHandling(HandlerSigPipe, SIGPIPE, signalsToBlock, 0);
 
     /**
-     * Glowna petla programu
+     * Główna pętla programu
      */
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
@@ -107,7 +115,7 @@ int main(int argc, char *argv[]) {
         int oldCompletedRequests = completedRequests;
         SendRequest(myPid, requestRegister);
         GoToSleep(0, nanoTimeGap);
-        if (completedRequests == oldCompletedRequests)//Jesli sa rowne tzn, ze odpowiedz nie nadeszla
+        if (completedRequests == oldCompletedRequests)//Jeśli są równe tzn, że odpowiedź nie nadeszła
         {
             SendReminder(procPid);
         }
@@ -142,6 +150,8 @@ void SendRequest(pid_t myPid, float requestRegister) {
 }
 
 void SendReminder(pid_t receiverPid) {
+    static int oldValue;
+
     union sigval sv;
     sv.sival_int = 0;
     sv.sival_ptr = NULL;
@@ -150,7 +160,7 @@ void SendReminder(pid_t receiverPid) {
     int value = rand() % (range + 1);
 
     /**
-     * Ustanowienie obslugi ewentualnej odpowiedzi na ponaglenie
+     * Ustanowienie obsługi ewentualnej odpowiedzi na ponaglenie
      */
     sigset_t signalsToBlock;
     sigemptyset(&signalsToBlock);//TODO: Usunac debug linijke nizej
@@ -159,6 +169,15 @@ void SendReminder(pid_t receiverPid) {
     if (sigqueue(receiverPid, SIGRTMIN + 3, sv) == -1) {
         OnError("Pasozyt: Blad podczas wysylania ponaglenia!");
     }
+
+    /**
+     * Ustanowienie default-owej obsługi sygnału poprzedniego ponaglenia
+     */
+     if (signal(SIGRTMIN + oldValue, SIG_DFL) == SIG_ERR) {
+         OnError("Pasozyt: Blad podczas ustanawiania default-owej obslugi sygnalu poprzedniego ponaglenia!");
+     }
+
+    oldValue = value;
     sentReminders++;
     lastRequest.remindersCount++;
 }
@@ -167,20 +186,20 @@ void HandlerConfirmationOfRequest(int sig, siginfo_t *si, void *ucontext) {
     requestRegister += requestRegister * (float) 0.25;
     completedRequests++;
     lastRequest.completed = 1;
-    isNewRequest = 1; //Po spelnieniu zadania uznajemy, ze nastepne wyslane zadanie jest nowym zadaniem
+    isNewRequest = 1; //Po spełnieniu żądania uznajemy, że następne wysłane żądanie jest nowym żądaniem
 }
 
 void HandlerAnswerToReminder(int sig, siginfo_t *si, void *ucontext) {
     requestRegister -= requestRegister * (float) 0.2;
     lastRequest.answersCount++;
     /**
-     * Usunac jesli nalezy pozostawic zapisana pierwotna wartosc zadania!!!
+     * Usunąć jeśli należy pozostawic zapisaną pierwotną wartość żądania!!!
      */
      lastRequest.requestValue = requestRegister;
      /********************************************************************/
 
      /**
-      * Ustanawiam limit 5 odpowiedzi na ponaglenia.
+      * Ustanawiam limit 5-ciu odpowiedzi na ponaglenia.
       */
       if (lastRequest.answersCount >= 5)
       {
