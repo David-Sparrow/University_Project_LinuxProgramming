@@ -5,3 +5,4 @@ set(CMAKE_C_STANDARD 11)
 
 add_executable(Pasozyt parasite.c)
 add_executable(OdbiorcaPonaglen OdbiorcaPonaglen.c)
+add_executable(Provider provider.c)
