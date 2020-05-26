@@ -6,16 +6,16 @@
 #include <signal.h>
 #include <time.h>
 #include <float.h>
-//#include <pthread.h>
 #include <math.h>
 #include <ctype.h>
 #include <sys/time.h>
+//#include <pthread.h>
 
 /**
  * NOTATKI:
- * Obsługa żądań realizowana jest w osobnym wątku. Czytanie z STDIN wykonywane jest po jednym znaku, aż do napotkania
- * znaku nowej linii. Następnie odczytywana jest informacja z żądania i wykonywana obsługa.
- * Zbiory realizowane są w nieskończonej pętli w main.
+ * Obsługa żądań realizowana jest w głównej pętli programu w main. Czytanie z STDIN wykonywane jest po jednym znaku,
+ * aż do napotkania znaku nowej linii. Następnie odczytywana jest informacja z żądania i wykonywana obsługa.
+ * Zbiory realizowane są jako reakcja na sygnał SIGALRM pochodzący z budzika.
  */
 
 /**
@@ -41,8 +41,6 @@ void SendConfirmationOfRequest(pid_t pid, int signal);
 
 void ReadRequestFromStdin(char* buffer, int sizeOfBuffer);
 
-//static void* HandlingRequestsInThread(void* arg);
-
 void HandlerSendResponseForReminder(int sig, siginfo_t *si, void *ucontext);
 
 void SetRandomRealTimeHandling(float nonDeathPercentage, float responsePercentage);
@@ -53,6 +51,8 @@ void HandlerTimer(int sig, siginfo_t *si, void *ucontext);
 
 void SetTimer(time_t seconds, long nanoseconds);
 
+//static void* HandlingRequestsInThread(void* arg);
+
 /**
  * Funkcja main
  */
@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
 {
     char* cIncreaseRate = NULL;
     float gapBetweenCollections = 0.0; //Czas w sekundach pomiędzy zbiorami
-    float gapBetweenCollectionsMicro = 0.0; //Ułamkowa część wczytanego czasu w nanosekundach
+    float gapBetweenCollectionsMicro = 0.0; //Ułamkowa część wczytanego czasu w mikrosekundach
 
     char* cResistanceRate = NULL;
     float deathResistance = 0.0; //Wartość w % - jaki procent sygnałów RT nie zabija
@@ -113,38 +113,24 @@ int main(int argc, char* argv[])
      */
      SetTimer((time_t)gapBetweenCollections, (long)gapBetweenCollectionsMicro);
 
-
-    /**
-     * Uruchomienie obsługi żądań w wątku
-     */
-    /* pthread_t handlerOfRequests;
-     if (pthread_create(&handlerOfRequests, NULL, HandlingRequestsInThread, NULL) != 0)
-     {
-         OnError("Provider: Blad uruchomienia watku do obslugi zadan!");
-     }*/
-
      /**
       * Główna pętla programu
       */
-      /*while (1)
-      {
-          printf("Wartosc zasobu: %f\n", resourceValue); //TODO: Usuń debug!!
-          GoToSleep((time_t)gapBetweenCollections,(long)gapBetweenCollectionsNano);
-          resourceValue += increaseValue;
-
-      }*/
     char buffer[30] = {0};
     char* spacesBetweenNums = NULL;
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
     while (1)
     {
+        printf("Przed czytaniem z STDIN\n"); //TODO: DEBUG
         ReadRequestFromStdin(buffer, 30);
         if (ValidateRequest(buffer, 30) == -1)
         {
             printf("Provider: Bledny format zadania! Ignoruje zadanie!\n");
+            memset(buffer, 0, sizeof(buffer));
             continue;
         }
+        printf("Po walidacji!\n"); //TODO: DEBUG
         parasitePid = strtol(buffer, &spacesBetweenNums, 10);
         requestValue = strtof(spacesBetweenNums, NULL);
         memset(buffer, 0, sizeof(buffer));
@@ -217,32 +203,6 @@ void ReadRequestFromStdin(char* buffer, int sizeOfBuffer) {
         }
     }
 }
-
-/*void* HandlingRequestsInThread(void *arg) {
-    char buffer[30] = {0};
-    char* spacesBetweenNums = NULL;
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "EndlessLoop"
-    while (1)
-    {
-        ReadRequestFromStdin(buffer, 30);
-        if (ValidateRequest(buffer, 30) == -1)
-        {
-            printf("Provider: Bledny format zadania! Ignoruje zadanie!\n");
-            continue;
-        }
-        parasitePid = strtol(buffer, &spacesBetweenNums, 10);
-        requestValue = strtof(spacesBetweenNums, NULL);
-        memset(buffer, 0, sizeof(buffer));
-        if (requestValue <= resourceValue && (resourceValue - requestValue) <= FLT_MAX)//Warunki spełnienia żądania
-        {
-            resourceValue -= requestValue;
-            SendConfirmationOfRequest(parasitePid, signalInput);
-        }
-    }
-#pragma clang diagnostic pop
-    return NULL;
-}*/
 
 void HandlerSendResponseForReminder(int sig, siginfo_t *si, void *ucontext) {
     union sigval sv;
@@ -320,7 +280,7 @@ int ValidateRequest(char *request, int sizeOfRequest) {
 
 void HandlerTimer(int sig, siginfo_t *si, void *ucontext) {
     resourceValue += increaseValue;
-    printf("Wartosc zasobu: %f\n", resourceValue); //TODO: Usuń debug!!
+    printf("Provider DEBUG: Wartosc zasobu: %f\n", resourceValue); //TODO: DEBUG
 }
 
 void SetTimer(time_t seconds, long microseconds) {
@@ -340,3 +300,29 @@ void SetTimer(time_t seconds, long microseconds) {
         OnError("Provider: Blad przy ustawianiu timer-a!");
     }
 }
+
+/*void* HandlingRequestsInThread(void *arg) {
+    char buffer[30] = {0};
+    char* spacesBetweenNums = NULL;
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "EndlessLoop"
+    while (1)
+    {
+        ReadRequestFromStdin(buffer, 30);
+        if (ValidateRequest(buffer, 30) == -1)
+        {
+            printf("Provider: Bledny format zadania! Ignoruje zadanie!\n");
+            continue;
+        }
+        parasitePid = strtol(buffer, &spacesBetweenNums, 10);
+        requestValue = strtof(spacesBetweenNums, NULL);
+        memset(buffer, 0, sizeof(buffer));
+        if (requestValue <= resourceValue && (resourceValue - requestValue) <= FLT_MAX)//Warunki spełnienia żądania
+        {
+            resourceValue -= requestValue;
+            SendConfirmationOfRequest(parasitePid, signalInput);
+        }
+    }
+#pragma clang diagnostic pop
+    return NULL;
+}*/
