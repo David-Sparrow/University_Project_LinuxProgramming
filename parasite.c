@@ -140,7 +140,7 @@ void OnError(const char *message) {
 
 void SendRequest(pid_t myPid, float requestRegister) {
     char requestMessage[20] = {0};
-    sprintf(requestMessage, "%d %.2f\n", myPid, requestRegister);
+    sprintf(requestMessage, "%d %d\n", myPid, (int)requestRegister);
     if (write(STDOUT_FILENO, requestMessage, sizeof(requestMessage)) == -1) {
         OnError("Pasozyt: Blad podczas wypisywania zadania!");
     }
@@ -156,6 +156,7 @@ void SendRequest(pid_t myPid, float requestRegister) {
 
 void SendReminder(pid_t receiverPid) {
     static int oldValue;
+    static _Bool isNotFirstReminder;
 
     union sigval sv;
     sv.sival_int = 0;
@@ -176,12 +177,16 @@ void SendReminder(pid_t receiverPid) {
     }
 
     /**
-     * Ustanowienie default-owej obsługi sygnału poprzedniego ponaglenia
+     * Ustanowienie default-owej obsługi sygnału poprzedniego ponaglenia, z wyjątkiem 1-szego wysyłanego ponaglenia
      */
-     if (signal(SIGRTMIN + oldValue, SIG_DFL) == SIG_ERR) {
-         OnError("Pasozyt: Blad podczas ustanawiania default-owej obslugi sygnalu poprzedniego ponaglenia!");
+     if (isNotFirstReminder)
+     {
+         if (signal(SIGRTMIN + oldValue, SIG_DFL) == SIG_ERR) {
+             OnError("Pasozyt: Blad podczas ustanawiania default-owej obslugi sygnalu poprzedniego ponaglenia!");
+         }
      }
 
+    isNotFirstReminder = 1;
     oldValue = value;
     sentReminders++;
     lastRequest.remindersCount++;
