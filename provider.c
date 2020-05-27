@@ -111,29 +111,30 @@ int main(int argc, char* argv[])
     /**
      * Włączenie timer'a
      */
-     SetTimer((time_t)gapBetweenCollections, (long)gapBetweenCollectionsMicro);
+    SetTimer((time_t) gapBetweenCollections, (long) gapBetweenCollectionsMicro);
 
-     /**
-      * Główna pętla programu
-      */
-    char buffer[30] = {0};
+    /**
+     * Główna pętla programu
+     */
+    char buffer[512] = {0};
     char* spacesBetweenNums = NULL;
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
     while (1)
     {
-        printf("Przed czytaniem z STDIN\n"); //TODO: DEBUG
-        ReadRequestFromStdin(buffer, 30);
-        if (ValidateRequest(buffer, 30) == -1)
+        printf("DEBUG: Przed czytaniem z STDIN\n"); //TODO: DEBUG
+        ReadRequestFromStdin(buffer, 512);
+        if (ValidateRequest(buffer, 512) == -1)
         {
             printf("Provider: Bledny format zadania! Ignoruje zadanie!\n");
             memset(buffer, 0, sizeof(buffer));
             continue;
         }
-        printf("Po walidacji!\n"); //TODO: DEBUG
+        printf("DEBUG: Po pozytywnej walidacji!\n"); //TODO: DEBUG
         parasitePid = strtol(buffer, &spacesBetweenNums, 10);
         requestValue = strtof(spacesBetweenNums, NULL);
         memset(buffer, 0, sizeof(buffer));
+        printf("DEBUG: Odczytane wartosci: %d\t%f\n", parasitePid, requestValue); //TODO: DEBUG
         if (requestValue <= resourceValue && (resourceValue - requestValue) <= FLT_MAX)//Warunki spełnienia żądania
         {
             resourceValue -= requestValue;
@@ -189,6 +190,7 @@ void SendConfirmationOfRequest(pid_t pid, int signal) {
     {
         OnError("Provider: Blad wysylania potwierdzenia spelnienia zadania!");
     }
+    printf("DEBUG: Wyslalem potwierdzenie wykonania zadania na: %d\n", pid); //TODO: DEBUG
 }
 
 void ReadRequestFromStdin(char* buffer, int sizeOfBuffer) {
@@ -202,6 +204,7 @@ void ReadRequestFromStdin(char* buffer, int sizeOfBuffer) {
             break;
         }
     }
+    //read(STDIN_FILENO, buffer, sizeOfBuffer); //TODO: PRZEROBKI
 }
 
 void HandlerSendResponseForReminder(int sig, siginfo_t *si, void *ucontext) {
@@ -226,11 +229,13 @@ void SetRandomRealTimeHandling(float nonDeathPercentage, float responsePercentag
                 sigset_t signalsToBlock;
                 sigfillset(&signalsToBlock);
                 SetSignalHandling(HandlerSendResponseForReminder, SIGRTMIN + i, signalsToBlock, SA_RESTART | SA_SIGINFO);
+                printf("DEBUG: Ustanowiono obsluge SIGRTMIN+%d\n", i); //TODO: DEBUG
             } else
             {
                 if (signal(SIGRTMIN + i, SIG_IGN) == SIG_ERR) {
                     OnError("Provider: Blad podczas ustawiania ignorowania sygnalu RT!");
                 }
+                printf("DEBUG: Ustanowiono ignorowanie SIGRTMIN+%d\n", i); //TODO: DEBUG
             }
         }
     }
@@ -241,7 +246,10 @@ int ValidateRequest(char *request, int sizeOfRequest) {
     _Bool encounteredDot = 0;
     _Bool encounteredNewLine = 0;
     _Bool isValid = 0;
+    sleep(4); //TODO: DEBUG
+    printf("DEBUG: Tu funkcja ValidateRequest: Odczytuje ciag znakow: "); //TODO: DEBUG
     for (int i = 0; i < sizeOfRequest - 1; ++i) {
+        printf("%c", request[i]); //TODO: DEBUG
         if (isdigit(request[i]) || isblank(request[i]) || request[i] == '.' || request[i] == '\n')
         {
             if (isdigit(request[i]) && (isblank(request[i+1]) || request[i+1] == '\n'))
