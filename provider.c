@@ -219,26 +219,44 @@ void HandlerSendResponseForReminder(int sig, siginfo_t *si, void *ucontext) {
 
 void SetRandomRealTimeHandling(float nonDeathPercentage, float responsePercentage) {
     int range = SIGRTMAX - SIGRTMIN;
-    for (int i = 0; i <= range; ++i) {
-        int randomNum = (rand() % 100) + 1;
-        if (randomNum <= nonDeathPercentage)
-        {
-            randomNum = (rand() % 100) + 1;
-            if (randomNum <= responsePercentage)
-            {
-                sigset_t signalsToBlock;
-                sigfillset(&signalsToBlock);
-                SetSignalHandling(HandlerSendResponseForReminder, SIGRTMIN + i, signalsToBlock, SA_RESTART | SA_SIGINFO);
-                printf("DEBUG: Ustanowiono obsluge SIGRTMIN+%d\n", i); //TODO: DEBUG
-            } else
-            {
-                if (signal(SIGRTMIN + i, SIG_IGN) == SIG_ERR) {
-                    OnError("Provider: Blad podczas ustawiania ignorowania sygnalu RT!");
-                }
-                printf("DEBUG: Ustanowiono ignorowanie SIGRTMIN+%d\n", i); //TODO: DEBUG
+    int nonMortalSignals = (int) (nonDeathPercentage * (float) (range + 1) / 100.0);
+    int responsiveSignals = (int) (responsePercentage * (float) nonMortalSignals / 100.0);
+
+    int *randomSignals = (int *) calloc(nonMortalSignals, sizeof(int));
+    memset(randomSignals, -1, sizeof(randomSignals));
+
+    int signalsFound = 0;
+    _Bool isDuplicate = 0;
+    while (signalsFound < nonMortalSignals) {
+        int randomNum = rand() % (range + 1);
+        for (int i = 0; i < nonMortalSignals && !isDuplicate; ++i) {
+            if (randomSignals[i] == randomNum) {
+                isDuplicate = 1;
             }
         }
+        if (isDuplicate) {
+            isDuplicate = 0;
+            continue;
+        } else {
+            randomSignals[signalsFound++] = randomNum;
+        }
     }
+
+    for (int i = 0; i < nonMortalSignals; ++i) {
+        if (i < responsiveSignals) {
+            sigset_t signalsToBlock;
+            sigfillset(&signalsToBlock);
+            SetSignalHandling(HandlerSendResponseForReminder, SIGRTMIN + randomSignals[i], signalsToBlock,
+                              SA_RESTART | SA_SIGINFO);
+            printf("DEBUG: Ustanowiono obsluge SIGRTMIN+%d\n", randomSignals[i]); //TODO: DEBUG
+        } else {
+            if (signal(SIGRTMIN + randomSignals[i], SIG_IGN) == SIG_ERR) {
+                OnError("Provider: Blad podczas ustawiania ignorowania sygnalu RT!");
+            }
+            printf("DEBUG: Ustanowiono ignorowanie SIGRTMIN+%d\n", randomSignals[i]); //TODO: DEBUG
+        }
+    }
+    free(randomSignals);
 }
 
 int ValidateRequest(char *request, int sizeOfRequest) {
