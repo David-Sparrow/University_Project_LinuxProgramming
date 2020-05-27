@@ -9,7 +9,6 @@
 #include <math.h>
 #include <ctype.h>
 #include <sys/time.h>
-//#include <pthread.h>
 
 /**
  * NOTATKI:
@@ -51,7 +50,6 @@ void HandlerTimer(int sig, siginfo_t *si, void *ucontext);
 
 void SetTimer(time_t seconds, long nanoseconds);
 
-//static void* HandlingRequestsInThread(void* arg);
 
 /**
  * Funkcja main
@@ -196,7 +194,8 @@ void SendConfirmationOfRequest(pid_t pid, int signal) {
 void ReadRequestFromStdin(char* buffer, int sizeOfBuffer) {
     char ch;
     int i = 0;
-    while (read(STDIN_FILENO, &ch, 1) > 0)
+    int res = 66;//TODO: DEBUG
+    while ((res = read(STDIN_FILENO, &ch, 1)) > 0)
     {
         buffer[i++] = ch;
         if (ch == '\n' || i >= sizeOfBuffer)
@@ -204,7 +203,8 @@ void ReadRequestFromStdin(char* buffer, int sizeOfBuffer) {
             break;
         }
     }
-    //read(STDIN_FILENO, buffer, sizeOfBuffer); //TODO: PRZEROBKI
+    //res = read(STDIN_FILENO, buffer, sizeOfBuffer); //TODO: PRZEROBKI
+    printf("Zwrot funkcji read: %d\n", res); //TODO: DEBUG
 }
 
 void HandlerSendResponseForReminder(int sig, siginfo_t *si, void *ucontext) {
@@ -308,29 +308,3 @@ void SetTimer(time_t seconds, long microseconds) {
         OnError("Provider: Blad przy ustawianiu timer-a!");
     }
 }
-
-/*void* HandlingRequestsInThread(void *arg) {
-    char buffer[30] = {0};
-    char* spacesBetweenNums = NULL;
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "EndlessLoop"
-    while (1)
-    {
-        ReadRequestFromStdin(buffer, 30);
-        if (ValidateRequest(buffer, 30) == -1)
-        {
-            printf("Provider: Bledny format zadania! Ignoruje zadanie!\n");
-            continue;
-        }
-        parasitePid = strtol(buffer, &spacesBetweenNums, 10);
-        requestValue = strtof(spacesBetweenNums, NULL);
-        memset(buffer, 0, sizeof(buffer));
-        if (requestValue <= resourceValue && (resourceValue - requestValue) <= FLT_MAX)//Warunki spełnienia żądania
-        {
-            resourceValue -= requestValue;
-            SendConfirmationOfRequest(parasitePid, signalInput);
-        }
-    }
-#pragma clang diagnostic pop
-    return NULL;
-}*/

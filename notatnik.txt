@@ -1,0 +1,39 @@
+/**************************************
+    int flags = fcntl(STDIN_FILENO, F_GETFL);
+    flags &= ~O_NONBLOCK; lub flags |= O_NONBLOCK;
+    if (fcntl(STDIN_FILENO, F_SETFL, flags) == -1 )
+    {
+        OnError("");
+    }
+
+/**************************************
+
+static void* HandlingRequestsInThread(void* arg);
+
+void* HandlingRequestsInThread(void *arg) {
+    char buffer[30] = {0};
+    char* spacesBetweenNums = NULL;
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "EndlessLoop"
+    while (1)
+    {
+        ReadRequestFromStdin(buffer, 30);
+        if (ValidateRequest(buffer, 30) == -1)
+        {
+            printf("Provider: Bledny format zadania! Ignoruje zadanie!\n");
+            continue;
+        }
+        parasitePid = strtol(buffer, &spacesBetweenNums, 10);
+        requestValue = strtof(spacesBetweenNums, NULL);
+        memset(buffer, 0, sizeof(buffer));
+        if (requestValue <= resourceValue && (resourceValue - requestValue) <= FLT_MAX)//Warunki spełnienia żądania
+        {
+            resourceValue -= requestValue;
+            SendConfirmationOfRequest(parasitePid, signalInput);
+        }
+    }
+#pragma clang diagnostic pop
+    return NULL;
+}
+
+/**************************************
