@@ -223,7 +223,7 @@ void SetRandomRealTimeHandling(float nonDeathPercentage, float responsePercentag
     int responsiveSignals = (int) (responsePercentage * (float) nonMortalSignals / 100.0);
 
     int *randomSignals = (int *) calloc(nonMortalSignals, sizeof(int));
-    memset(randomSignals, -1, sizeof(randomSignals));
+    memset(randomSignals, -1, sizeof(int) * nonMortalSignals);
 
     int signalsFound = 0;
     _Bool isDuplicate = 0;
