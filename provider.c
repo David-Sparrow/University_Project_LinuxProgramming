@@ -9,6 +9,8 @@
 #include <math.h>
 #include <ctype.h>
 #include <sys/time.h>
+#include <errno.h>
+#include <values.h>
 
 /**
  * NOTATKI:
@@ -64,6 +66,9 @@ int main(int argc, char* argv[])
     float deathResistance = 0.0; //Wartość w % - jaki procent sygnałów RT nie zabija
     float responseRate = 0.0; //Wartość w % - jaki procent przyjętych sygnałóœ RT zasługuje na odpowiedź
 
+    char* endptr = NULL;
+    long strtolReturn = 0L;
+
     srand(time(NULL));
 
     /**
@@ -73,7 +78,13 @@ int main(int argc, char* argv[])
     while ((opt = getopt(argc, argv, "s:h:")) != -1) {
         switch (opt) {
             case 's':
-                signalInput = (int) strtol(optarg, NULL, 10);
+                errno = 0;
+                endptr = NULL;
+                strtolReturn = strtol(optarg, &endptr, 10);
+                signalInput = (int) strtolReturn;
+                if ((errno == ERANGE && (strtolReturn == LONG_MAX || strtolReturn == LONG_MIN)) || (errno != 0 && strtolReturn == 0) || (endptr == optarg)) {
+                    OnError("Provider: Blad strtol przy wczytywaniu parametru -s");
+                }
                 break;
             case 'h':
                 cIncreaseRate = optarg;
@@ -86,13 +97,31 @@ int main(int argc, char* argv[])
     cResistanceRate = argv[optind]; //Wczytanie parametru, który nie jest oznaczony flagą
 
     char* afterSlash = NULL;
+    errno = 0;
     increaseValue = strtof(cIncreaseRate, &afterSlash);
-    gapBetweenCollections = strtof(afterSlash+1, &afterSlash);
+    if ((errno == ERANGE && (increaseValue == HUGE_VALF || increaseValue == -HUGE_VALF)) || (errno != 0 && increaseValue == 0) || (afterSlash == cIncreaseRate)) {
+        OnError("Provider: Blad strtof przy wczytywaniu parametru -h");
+    }
+    errno = 0;
+    endptr = NULL;
+    gapBetweenCollections = strtof(afterSlash+1, &endptr);
+    if ((errno == ERANGE && (gapBetweenCollections == HUGE_VALF || gapBetweenCollections == -HUGE_VALF)) || (errno != 0 && gapBetweenCollections == 0) || (afterSlash+1 == endptr)) {
+        OnError("Provider: Blad strtof przy wczytywaniu parametru -h");
+    }
     gapBetweenCollectionsMicro = gapBetweenCollections - floorf(gapBetweenCollections);
     gapBetweenCollections = floorf(gapBetweenCollections);
     gapBetweenCollectionsMicro *= 1000000;
+    errno = 0;
     deathResistance = strtof(cResistanceRate, &afterSlash);
-    responseRate = strtof(afterSlash+1, NULL);
+    if ((errno == ERANGE && (deathResistance == HUGE_VALF || deathResistance == -HUGE_VALF)) || (errno != 0 && deathResistance == 0) || (afterSlash == cResistanceRate)) {
+        OnError("Provider: Blad strtof przy wczytywaniu parametru pozycyjnego");
+    }
+    errno = 0;
+    endptr = NULL;
+    responseRate = strtof(afterSlash+1, &endptr);
+    if ((errno == ERANGE && (responseRate == HUGE_VALF || responseRate == -HUGE_VALF)) || (errno != 0 && responseRate == 0) || (afterSlash+1 == endptr)) {
+        OnError("Provider: Blad strtof przy wczytywaniu parametru pozycyjnego");
+    }
 
     /**
      * Ustanowienie losowej obsługi sygnałów RT - ponagleń
@@ -120,7 +149,7 @@ int main(int argc, char* argv[])
 #pragma ide diagnostic ignored "EndlessLoop"
     while (1)
     {
-        printf("DEBUG: Przed czytaniem z STDIN\n"); //TODO: DEBUG
+        fprintf(stderr,"DEBUG: Przed czytaniem z STDIN\n"); //TODO: DEBUG
         ReadRequestFromStdin(buffer, 512);
         if (ValidateRequest(buffer, 512) == -1)
         {
@@ -128,11 +157,11 @@ int main(int argc, char* argv[])
             memset(buffer, 0, sizeof(buffer));
             continue;
         }
-        printf("DEBUG: Po pozytywnej walidacji!\n"); //TODO: DEBUG
+        fprintf(stderr, "DEBUG: Po pozytywnej walidacji!\n"); //TODO: DEBUG
         parasitePid = strtol(buffer, &spacesBetweenNums, 10);
         requestValue = strtof(spacesBetweenNums, NULL);
         memset(buffer, 0, sizeof(buffer));
-        printf("DEBUG: Odczytane wartosci: %d\t%f\n", parasitePid, requestValue); //TODO: DEBUG
+        fprintf(stderr, "DEBUG: Odczytane wartosci: %d\t%f\n", parasitePid, requestValue); //TODO: DEBUG
         if (requestValue <= resourceValue && (resourceValue - requestValue) <= FLT_MAX)//Warunki spełnienia żądania
         {
             resourceValue -= requestValue;
@@ -188,7 +217,7 @@ void SendConfirmationOfRequest(pid_t pid, int signal) {
     {
         OnError("Provider: Blad wysylania potwierdzenia spelnienia zadania!");
     }
-    printf("DEBUG: Wyslalem potwierdzenie wykonania zadania na: %d\n", pid); //TODO: DEBUG
+    fprintf(stderr,"DEBUG: Wyslalem potwierdzenie wykonania zadania na: %d\n", pid); //TODO: DEBUG
 }
 
 void ReadRequestFromStdin(char* buffer, int sizeOfBuffer) {
@@ -204,7 +233,7 @@ void ReadRequestFromStdin(char* buffer, int sizeOfBuffer) {
         }
     }
     //res = read(STDIN_FILENO, buffer, sizeOfBuffer); //TODO: PRZEROBKI
-    printf("Zwrot funkcji read: %d\n", res); //TODO: DEBUG
+    fprintf(stderr,"Zwrot funkcji read: %d\n", res); //TODO: DEBUG
 }
 
 void HandlerSendResponseForReminder(int sig, siginfo_t *si, void *ucontext) {
@@ -248,12 +277,12 @@ void SetRandomRealTimeHandling(float nonDeathPercentage, float responsePercentag
             sigfillset(&signalsToBlock);
             SetSignalHandling(HandlerSendResponseForReminder, SIGRTMIN + randomSignals[i], signalsToBlock,
                               SA_RESTART | SA_SIGINFO);
-            printf("DEBUG: Ustanowiono obsluge SIGRTMIN+%d\n", randomSignals[i]); //TODO: DEBUG
+            fprintf(stderr,"DEBUG: Ustanowiono obsluge SIGRTMIN+%d\n", randomSignals[i]); //TODO: DEBUG
         } else {
             if (signal(SIGRTMIN + randomSignals[i], SIG_IGN) == SIG_ERR) {
                 OnError("Provider: Blad podczas ustawiania ignorowania sygnalu RT!");
             }
-            printf("DEBUG: Ustanowiono ignorowanie SIGRTMIN+%d\n", randomSignals[i]); //TODO: DEBUG
+            fprintf(stderr,"DEBUG: Ustanowiono ignorowanie SIGRTMIN+%d\n", randomSignals[i]); //TODO: DEBUG
         }
     }
     free(randomSignals);
@@ -264,10 +293,10 @@ int ValidateRequest(char *request, int sizeOfRequest) {
     _Bool encounteredDot = 0;
     _Bool encounteredNewLine = 0;
     _Bool isValid = 0;
-    sleep(4); //TODO: DEBUG
-    printf("DEBUG: Tu funkcja ValidateRequest: Odczytuje ciag znakow: "); //TODO: DEBUG
+    //sleep(4); //TODO: DEBUG
+    fprintf(stderr,"DEBUG: Tu funkcja ValidateRequest: Odczytuje ciag znakow: "); //TODO: DEBUG
     for (int i = 0; i < sizeOfRequest - 1; ++i) {
-        printf("%c", request[i]); //TODO: DEBUG
+        fprintf(stderr,"%c", request[i]); //TODO: DEBUG
         if (isdigit(request[i]) || isblank(request[i]) || request[i] == '.' || request[i] == '\n')
         {
             if (isdigit(request[i]) && (isblank(request[i+1]) || request[i+1] == '\n'))
@@ -306,7 +335,7 @@ int ValidateRequest(char *request, int sizeOfRequest) {
 
 void HandlerTimer(int sig, siginfo_t *si, void *ucontext) {
     resourceValue += increaseValue;
-    printf("Provider DEBUG: Wartosc zasobu: %f\n", resourceValue); //TODO: DEBUG
+    fprintf(stderr,"Provider DEBUG: Wartosc zasobu: %f\n", resourceValue); //TODO: DEBUG
 }
 
 void SetTimer(time_t seconds, long microseconds) {

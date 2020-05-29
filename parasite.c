@@ -4,6 +4,10 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <time.h>
+#include <errno.h>
+#include <values.h>
+#include <math.h>
+#include <sys/time.h>
 
 /**
  * NOTATKI:
@@ -60,6 +64,8 @@ int main(int argc, char *argv[]) {
     pid_t procPid = 0;
     float timeGap = 0;
     myPid = getpid();
+    char* endptr = NULL;
+    long strtolReturn = 0L;
 
     srand(time(NULL));
 
@@ -75,19 +81,41 @@ int main(int argc, char *argv[]) {
     while ((opt = getopt(argc, argv, "s:p:d:v:")) != -1) {
         switch (opt) {
             case 's':
-                signal = (int) strtol(optarg, NULL, 10);
+                errno = 0;
+                endptr = NULL;
+                strtolReturn = strtol(optarg, &endptr, 10);
+                signal = (int) strtolReturn;
+                if ((errno == ERANGE && (strtolReturn == LONG_MAX || strtolReturn == LONG_MIN)) || (errno != 0 && strtolReturn == 0) || (endptr == optarg)) {
+                    OnError("Pasozyt: Blad strtol przy wczytywaniu parametru -s");
+                }
                 break;
 
             case 'p':
-                procPid = (int) strtol(optarg, NULL, 10);
+                errno = 0;
+                endptr = NULL;
+                strtolReturn = strtol(optarg, &endptr, 10);
+                procPid = (int) strtolReturn;
+                if ((errno == ERANGE && (strtolReturn == LONG_MAX || strtolReturn == LONG_MIN)) || (errno != 0 && strtolReturn == 0) || (endptr == optarg)) {
+                    OnError("Pasozyt: Blad strtol przy wczytywaniu parametru -p");
+                }
                 break;
 
             case 'd':
-                timeGap = strtof(optarg, NULL);
+                errno = 0;
+                endptr = NULL;
+                timeGap = strtof(optarg, &endptr);
+                if ((errno == ERANGE && (timeGap == HUGE_VALF || timeGap == -HUGE_VALF)) || (errno != 0 && timeGap == 0) || (endptr == optarg)) {
+                    OnError("Pasozyt: Blad strtof przy wczytywaniu parametru -d");
+                }
                 break;
 
             case 'v':
-                requestRegister = strtof(optarg, NULL);
+                errno = 0;
+                endptr = NULL;
+                requestRegister = strtof(optarg, &endptr);
+                if ((errno == ERANGE && (requestRegister == HUGE_VALF || requestRegister == -HUGE_VALF)) || (errno != 0 && requestRegister == 0) || (endptr == optarg)) {
+                    OnError("Pasozyt: Blad strtof przy wczytywaniu parametru -v");
+                }
                 break;
             default:
                 OnError("Pasozyt: Blad we wczytywaniu wartosci parametrow!");
@@ -253,11 +281,11 @@ void GoToSleep(time_t seconds, long nanoseconds) {
     }
     ts.tv_sec = seconds;
     ts.tv_nsec = nanoseconds;
-    if (nanosleep(&ts, &timeLeft) == 0) {
+    if (clock_nanosleep(CLOCK_REALTIME, 0, &ts, &timeLeft) == 0) {
         sleepSuccess = 1;
     }
     while (sleepSuccess == 0) {
-        if (nanosleep(&timeLeft, &timeLeft) == 0) {
+        if (clock_nanosleep(CLOCK_REALTIME, 0, &timeLeft, &timeLeft) == 0) {
             sleepSuccess = 1;
         }
     }
