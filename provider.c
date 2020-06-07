@@ -232,6 +232,11 @@ void ReadRequestFromStdin(char* buffer, int sizeOfBuffer) {
             break;
         }
     }
+    if (res == 0)
+    {
+        fprintf(stderr, "Provider: Wszystkie pasozyty nie zyja. Koncze dzialanie!\n");
+        exit(0);
+    }
     //res = read(STDIN_FILENO, buffer, sizeOfBuffer); //TODO: PRZEROBKI
     fprintf(stderr,"Zwrot funkcji read: %d\n", res); //TODO: DEBUG
 }
