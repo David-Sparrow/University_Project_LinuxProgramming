@@ -4,15 +4,13 @@
 #include <signal.h>
 #include <errno.h>
 #include <values.h>
-#include <time.h>
+#include <sys/wait.h>
 
 
 /**
  * Deklaracje funkcji
  */
 void OnError(const char *message);
-
-void GoToSleep(time_t seconds, long nanoseconds);
 
 
 /**
@@ -162,17 +160,19 @@ int main(int argc, char* argv[])
             break;
     }
 
-    /**
-     * Familiada udaje się na długi spoczynek
-     */
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "EndlessLoop"
-     while (1)
-     {
-         GoToSleep(5,0L);
-     }
-#pragma clang diagnostic pop
+    if (close(pipeFd[0]) == -1)
+        OnError("Familiada: Blad zamkniecia nieuzywanych deskryptorow rury!");
 
+    if (close(pipeFd[1]) == -1)
+        OnError("Familiada: Blad zamkniecia nieuzywanych deskryptorow rury!");
+
+
+    if (wait(NULL) == -1)
+        OnError("Familiada: Blad w funkcji wait!");
+    if (wait(NULL) == -1)
+        OnError("Familiada: Blad w funkcji wait!");
+
+    return 0;
 }
 
 /**
@@ -181,24 +181,4 @@ int main(int argc, char* argv[])
 void OnError(const char *message) {
     perror(message);
     exit(666);
-}
-
-void GoToSleep(time_t seconds, long nanoseconds) {
-    struct timespec ts;
-    struct timespec timeLeft;
-    _Bool sleepSuccess = 0;
-    while (nanoseconds > 999999999L) {
-        nanoseconds -= 1000000000L;
-        seconds++;
-    }
-    ts.tv_sec = seconds;
-    ts.tv_nsec = nanoseconds;
-    if (nanosleep(&ts, &timeLeft) == 0) {
-        sleepSuccess = 1;
-    }
-    while (sleepSuccess == 0) {
-        if (nanosleep(&timeLeft, &timeLeft) == 0) {
-            sleepSuccess = 1;
-        }
-    }
 }

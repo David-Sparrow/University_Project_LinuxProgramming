@@ -227,7 +227,6 @@ void ReadRequestFromStdin(char* buffer, int sizeOfBuffer) {
         fprintf(stderr, "Provider: Wszystkie pasozyty nie zyja. Koncze dzialanie!\n");
         exit(0);
     }
-    fprintf(stderr,"Provider DEBUG: Zwrot funkcji read: %d\n", res); //TODO: DEBUG
 }
 
 void HandlerSendResponseForReminder(int sig, siginfo_t *si, void *ucontext) {

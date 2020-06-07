@@ -204,7 +204,7 @@ void SendReminder(pid_t receiverPid) {
     if (sigqueue(receiverPid, SIGRTMIN + value, sv) == -1) {
         OnError("Pasozyt: Blad podczas wysylania ponaglenia!");
     }
-    fprintf(stderr, "Pasozt DEBUG: Wysylam upomnienie na pid: %d!\n", receiverPid); //TODO: DEBUG
+    fprintf(stderr, "Pasozyt DEBUG: Wysylam upomnienie na pid: %d!\n", receiverPid); //TODO: DEBUG
     /**
      * Ustanowienie default-owej obsługi sygnału poprzedniego ponaglenia, z wyjątkiem 1-szego wysyłanego ponaglenia
      */
