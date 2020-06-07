@@ -157,7 +157,7 @@ int main(int argc, char* argv[])
                         break;
                 }
             }
-            exit(0);
+            kill(getpid(), SIGKILL);
         default:
             break;
     }
@@ -169,7 +169,7 @@ int main(int argc, char* argv[])
 #pragma ide diagnostic ignored "EndlessLoop"
      while (1)
      {
-         GoToSleep(30,0L);
+         GoToSleep(5,0L);
      }
 #pragma clang diagnostic pop
 

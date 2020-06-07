@@ -169,6 +169,7 @@ void OnError(const char *message) {
 void SendRequest(pid_t myPid, float requestRegister) {
     char requestMessage[20] = {0};
     sprintf(requestMessage, "%d %d\n", myPid, (int)requestRegister);
+    fprintf(stderr,"Pasozyt DEBUG: Wysylam zadanie o tresci: %s\n", requestMessage)  ; //TODO: DEBUG
     if (write(STDOUT_FILENO, requestMessage, sizeof(requestMessage)) == -1) {
         OnError("Pasozyt: Blad podczas wypisywania zadania!");
     }
@@ -197,13 +198,13 @@ void SendReminder(pid_t receiverPid) {
      * Ustanowienie obsługi ewentualnej odpowiedzi na ponaglenie
      */
     sigset_t signalsToBlock;
-    sigemptyset(&signalsToBlock);//TODO: Usunac debug linijke nizej
-    SetSignalHandling(HandlerAnswerToReminder, SIGRTMIN + 3, signalsToBlock, SA_RESTART | SA_SIGINFO);
-//TODO: Usunac debug linijke nizej
-    if (sigqueue(receiverPid, SIGRTMIN + 3, sv) == -1) {
+    sigemptyset(&signalsToBlock);
+    SetSignalHandling(HandlerAnswerToReminder, SIGRTMIN + value, signalsToBlock, SA_RESTART | SA_SIGINFO);
+
+    if (sigqueue(receiverPid, SIGRTMIN + value, sv) == -1) {
         OnError("Pasozyt: Blad podczas wysylania ponaglenia!");
     }
-
+    fprintf(stderr, "Pasozt DEBUG: Wysylam upomnienie na pid: %d!\n", receiverPid); //TODO: DEBUG
     /**
      * Ustanowienie default-owej obsługi sygnału poprzedniego ponaglenia, z wyjątkiem 1-szego wysyłanego ponaglenia
      */
@@ -225,6 +226,7 @@ void HandlerConfirmationOfRequest(int sig, siginfo_t *si, void *ucontext) {
     completedRequests++;
     lastRequest.completed = 1;
     isNewRequest = 1; //Po spełnieniu żądania uznajemy, że następne wysłane żądanie jest nowym żądaniem
+    fprintf(stderr, "Pasozyt DEBUG: Otrzymalem potwierdzenie. Zwiekszam rejestr do: %f\n", requestRegister); //TODO: DEBUG
 }
 
 void HandlerAnswerToReminder(int sig, siginfo_t *si, void *ucontext) {
@@ -235,7 +237,7 @@ void HandlerAnswerToReminder(int sig, siginfo_t *si, void *ucontext) {
      */
      lastRequest.requestValue = requestRegister;
      /********************************************************************/
-
+    fprintf(stderr, "Pasozyt DEBUG: Otrzymalem odpowiedz na ponaglenie. Zmniejszam rejestr do: %f\n", requestRegister); //TODO: DEBUG
      /**
       * Ustanawiam limit 5-ciu odpowiedzi na ponaglenia.
       */

@@ -149,7 +149,6 @@ int main(int argc, char* argv[])
 #pragma ide diagnostic ignored "EndlessLoop"
     while (1)
     {
-        fprintf(stderr,"DEBUG: Przed czytaniem z STDIN\n"); //TODO: DEBUG
         ReadRequestFromStdin(buffer, 512);
         if (ValidateRequest(buffer, 512) == -1)
         {
@@ -157,11 +156,11 @@ int main(int argc, char* argv[])
             memset(buffer, 0, sizeof(buffer));
             continue;
         }
-        fprintf(stderr, "DEBUG: Po pozytywnej walidacji!\n"); //TODO: DEBUG
+        fprintf(stderr, "Provider DEBUG: Po pozytywnej walidacji!\n"); //TODO: DEBUG
         parasitePid = strtol(buffer, &spacesBetweenNums, 10);
         requestValue = strtof(spacesBetweenNums, NULL);
         memset(buffer, 0, sizeof(buffer));
-        fprintf(stderr, "DEBUG: Odczytane wartosci: %d\t%f\n", parasitePid, requestValue); //TODO: DEBUG
+        fprintf(stderr, "Provider DEBUG: Odczytane wartosci: %d\t%f\n", parasitePid, requestValue); //TODO: DEBUG
         if (requestValue <= resourceValue && (resourceValue - requestValue) <= FLT_MAX)//Warunki spełnienia żądania
         {
             resourceValue -= requestValue;
@@ -217,28 +216,18 @@ void SendConfirmationOfRequest(pid_t pid, int signal) {
     {
         OnError("Provider: Blad wysylania potwierdzenia spelnienia zadania!");
     }
-    fprintf(stderr,"DEBUG: Wyslalem potwierdzenie wykonania zadania na: %d\n", pid); //TODO: DEBUG
+    fprintf(stderr,"Provider: DEBUG: Wyslalem potwierdzenie wykonania zadania na: %d\n", pid); //TODO: DEBUG
 }
 
 void ReadRequestFromStdin(char* buffer, int sizeOfBuffer) {
-    char ch;
-    int i = 0;
-    int res = 66;//TODO: DEBUG
-    while ((res = read(STDIN_FILENO, &ch, 1)) > 0)
-    {
-        buffer[i++] = ch;
-        if (ch == '\n' || i >= sizeOfBuffer)
-        {
-            break;
-        }
-    }
+    int res = 66;
+    res = read(STDIN_FILENO, buffer, 20);
     if (res == 0)
     {
         fprintf(stderr, "Provider: Wszystkie pasozyty nie zyja. Koncze dzialanie!\n");
         exit(0);
     }
-    //res = read(STDIN_FILENO, buffer, sizeOfBuffer); //TODO: PRZEROBKI
-    fprintf(stderr,"Zwrot funkcji read: %d\n", res); //TODO: DEBUG
+    fprintf(stderr,"Provider DEBUG: Zwrot funkcji read: %d\n", res); //TODO: DEBUG
 }
 
 void HandlerSendResponseForReminder(int sig, siginfo_t *si, void *ucontext) {
@@ -282,12 +271,12 @@ void SetRandomRealTimeHandling(float nonDeathPercentage, float responsePercentag
             sigfillset(&signalsToBlock);
             SetSignalHandling(HandlerSendResponseForReminder, SIGRTMIN + randomSignals[i], signalsToBlock,
                               SA_RESTART | SA_SIGINFO);
-            fprintf(stderr,"DEBUG: Ustanowiono obsluge SIGRTMIN+%d\n", randomSignals[i]); //TODO: DEBUG
+            //fprintf(stderr,"Provider DEBUG: Ustanowiono obsluge SIGRTMIN+%d\n", randomSignals[i]); //TODO: DEBUG
         } else {
             if (signal(SIGRTMIN + randomSignals[i], SIG_IGN) == SIG_ERR) {
                 OnError("Provider: Blad podczas ustawiania ignorowania sygnalu RT!");
             }
-            fprintf(stderr,"DEBUG: Ustanowiono ignorowanie SIGRTMIN+%d\n", randomSignals[i]); //TODO: DEBUG
+            //fprintf(stderr,"Provider DEBUG: Ustanowiono ignorowanie SIGRTMIN+%d\n", randomSignals[i]); //TODO: DEBUG
         }
     }
     free(randomSignals);
@@ -298,8 +287,7 @@ int ValidateRequest(char *request, int sizeOfRequest) {
     _Bool encounteredDot = 0;
     _Bool encounteredNewLine = 0;
     _Bool isValid = 0;
-    //sleep(4); //TODO: DEBUG
-    fprintf(stderr,"DEBUG: Tu funkcja ValidateRequest: Odczytuje ciag znakow: "); //TODO: DEBUG
+    fprintf(stderr,"Provider DEBUG: Tu funkcja ValidateRequest: Odczytuje ciag znakow: "); //TODO: DEBUG
     for (int i = 0; i < sizeOfRequest - 1; ++i) {
         fprintf(stderr,"%c", request[i]); //TODO: DEBUG
         if (isdigit(request[i]) || isblank(request[i]) || request[i] == '.' || request[i] == '\n')
